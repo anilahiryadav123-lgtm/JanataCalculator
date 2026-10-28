@@ -1,1 +1,52 @@
+name: Build Janata Calculator APK
+on: [push, workflow_dispatch]
 
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Prepare web files
+        run: |
+          mkdir -p www
+          cp index.html manifest.json sw.js www/
+          cp -r icons www/
+
+      - name: Create Capacitor Android project
+        run: |
+          npm init -y
+          npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6 @capacitor/app@6
+          npx cap init "Janata Calculator" com.anilyadav.janatacalculator --web-dir=www
+          npx cap add android
+          npx cap sync android
+
+      - name: Set app icon
+        run: |
+          R=android/app/src/main/res
+          rm -rf $R/mipmap-anydpi-v26
+          for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            n=${d%%:*}; s=${d##*:}
+            cp icons/icon-$s.png $R/mipmap-$n/ic_launcher.png
+            cp icons/icon-$s.png $R/mipmap-$n/ic_launcher_round.png
+            cp icons/icon-$s.png $R/mipmap-$n/ic_launcher_foreground.png
+          done
+
+      - name: Build APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk ../JanataCalculator.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JanataCalculator-APK
+          path: JanataCalculator.apk
