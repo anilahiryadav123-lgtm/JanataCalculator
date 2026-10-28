@@ -16,9 +16,18 @@ jobs:
 
       - name: Prepare web files
         run: |
+          echo "Repo files:"; ls -la
+          F=$(find . -name index.html -not -path "./.git/*" | head -1)
+          if [ -z "$F" ]; then
+            Z=$(find . -name "*.zip" -not -path "./.git/*" | head -1)
+            if [ -n "$Z" ]; then unzip -o "$Z" -d unzipped; F=$(find unzipped -name index.html | head -1); fi
+          fi
+          if [ -z "$F" ]; then echo "ERROR: index.html repo me nahi mila"; exit 1; fi
+          D=$(dirname "$F"); echo "App files: $D"
           mkdir -p www
-          cp index.html manifest.json sw.js www/
-          cp -r icons www/
+          cp -r "$D"/. www/
+          rm -rf www/.github www/.git
+          ls -la www
 
       - name: Create Capacitor Android project
         run: |
@@ -30,13 +39,14 @@ jobs:
 
       - name: Set app icon
         run: |
+          if [ ! -f www/icons/icon-48.png ]; then echo "icons nahi mile, default icon"; exit 0; fi
           R=android/app/src/main/res
           rm -rf $R/mipmap-anydpi-v26
           for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
             n=${d%%:*}; s=${d##*:}
-            cp icons/icon-$s.png $R/mipmap-$n/ic_launcher.png
-            cp icons/icon-$s.png $R/mipmap-$n/ic_launcher_round.png
-            cp icons/icon-$s.png $R/mipmap-$n/ic_launcher_foreground.png
+            cp www/icons/icon-$s.png $R/mipmap-$n/ic_launcher.png
+            cp www/icons/icon-$s.png $R/mipmap-$n/ic_launcher_round.png
+            cp www/icons/icon-$s.png $R/mipmap-$n/ic_launcher_foreground.png
           done
 
       - name: Build APK
